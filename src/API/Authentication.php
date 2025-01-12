@@ -265,6 +265,7 @@ final class Authentication extends ClientAbstract implements AuthenticationInter
                 'client_id' => $this->getConfiguration()->getClientId(ConfigurationException::requiresClientId()),
                 'audience' => $this->getConfiguration()->defaultAudience(),
                 'organization' => $this->getConfiguration()->defaultOrganization(),
+                'connection' => $this->getConfiguration()->defaultConnection(),
                 'redirect_uri' => $redirectUri,
                 'scope' => $this->getConfiguration()->formatScope(),
                 'response_mode' => $this->getConfiguration()->getResponseMode(),

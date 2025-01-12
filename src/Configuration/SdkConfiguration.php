@@ -110,6 +110,7 @@ final class SdkConfiguration implements ConfigurableContract
      * @param bool                             $pushedAuthorizationRequest      Defaults to false. If true, the SDK will attempt to use the Pushed Authorization Requests for authentication. See https://www.rfc-editor.org/rfc/rfc9126.html#.
      * @param null|CacheItemPoolInterface      $backchannelLogoutCache          A PSR-6 compatible cache adapter for storing backchannel logout tokens.
      * @param int                              $backchannelLogoutExpires        Defaults to 2592000 (30 days). How long, in seconds, before a backchannel logout request expires from the cache. This should be greater than your $cookieExpires value, particularly if you are using rolling sessions.
+     * @param null|array<string>               $connections                     Connection identifier
      *
      * @throws ConfigurationException when a valid `$strategy` is not specified
      */
@@ -162,6 +163,7 @@ final class SdkConfiguration implements ConfigurableContract
         private bool $pushedAuthorizationRequest = false,
         private ?CacheItemPoolInterface $backchannelLogoutCache = null,
         private int $backchannelLogoutExpires = 2592000,
+        private ?array $connections = null,
     ) {
         if (null !== $configuration && [] !== $configuration) {
             $this->applyConfiguration($configuration);
@@ -194,6 +196,21 @@ final class SdkConfiguration implements ConfigurableContract
         }
 
         return '';
+    }
+
+    public function defaultConnection(): ?string
+    {
+        if ($this->hasConnection()) {
+            $connections = $this->getConnections();
+
+            if (null !== $connections && [] !== $connections) {
+                $connections = array_values($connections);
+
+                return array_shift($connections);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -308,6 +325,18 @@ final class SdkConfiguration implements ConfigurableContract
         $this->exceptionIfNull($this->clientSecret, $exceptionIfNull);
 
         return $this->clientSecret;
+    }
+
+    /**
+     * @param ?Throwable $exceptionIfNull
+     *
+     * @return null|array<string> allowed connections to use
+     */
+    public function getConnections(?Throwable $exceptionIfNull = null): ?array
+    {
+        $this->exceptionIfNull($this->organization, $exceptionIfNull);
+
+        return $this->connections;
     }
 
     public function getCookieDomain(): ?string
@@ -607,6 +636,11 @@ final class SdkConfiguration implements ConfigurableContract
         return null !== $this->clientSecret;
     }
 
+    public function hasConnection(): bool
+    {
+        return null !== $this->connections;
+    }
+
     public function hasCookieDomain(): bool
     {
         return null !== $this->getCookieDomain();
@@ -829,6 +863,32 @@ final class SdkConfiguration implements ConfigurableContract
     }
 
     /**
+     * @param array<string>|string $connections A string or array of strings representing connection IDs/names to add to the connections allowlist.
+     *
+     * @return null|array<string>
+     */
+    public function pushConnection(array | string $connections): ?array
+    {
+        if (is_string($connections)) {
+            $connections = trim($connections);
+
+            if ('' === $connections) {
+                return $this->connections;
+            }
+
+            $connections = [$connections];
+        }
+
+        if ([] === $connections) {
+            return $this->organization;
+        }
+
+        $this->setConnections(array_merge($this->connections ?? [], $connections));
+
+        return $this->connections;
+    }
+
+    /**
      * @param array<string>|string $organizations A string or array of strings representing organization IDs/names to add to the organization allowlist.
      *
      * @return null|array<string>
@@ -948,6 +1008,16 @@ final class SdkConfiguration implements ConfigurableContract
         }
 
         $this->clientSecret = $clientSecret;
+
+        return $this;
+    }
+
+    /**
+     * @param null|array<string> $connections An allowlist of connections IDs/names.
+     */
+    public function setConnections(?array $connections = null): self
+    {
+        $this->connections = $this->filterArray($connections);
 
         return $this;
     }
@@ -1384,6 +1454,7 @@ final class SdkConfiguration implements ConfigurableContract
             'clientSecret' => null,
             'audience' => null,
             'organization' => null,
+            'connections' => null,
             'usePkce' => true,
             'scope' => ['openid', 'profile', 'email'],
             'responseMode' => 'query',
@@ -1441,6 +1512,7 @@ final class SdkConfiguration implements ConfigurableContract
             'clientSecret' => static fn ($value): bool => is_string($value) || null === $value,
             'audience' => static fn ($value): bool => is_array($value) || null === $value,
             'organization' => static fn ($value): bool => is_array($value) || null === $value,
+            'connections' => static fn ($value): bool => is_array($value) || null === $value,
             'usePkce' => static fn ($value): bool => is_bool($value),
             'scope' => static fn ($value): bool => is_array($value) || null === $value,
             'responseMode' => static fn ($value): bool => is_string($value),
