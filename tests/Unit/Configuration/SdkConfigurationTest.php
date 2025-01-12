@@ -216,6 +216,18 @@ test('a non-existent array value is ignored', function(): void
     expect($sdk->getOrganization())->toBeNull();
 });
 
+test('a non-existent connection array value is ignored', function(): void
+{
+    $sdk = new SdkConfiguration([
+        'strategy' => SdkConfiguration::STRATEGY_NONE,
+        'domain' => MockDomain::valid(),
+        'clientId' => uniqid(),
+        'connections' => [],
+    ]);
+
+    expect($sdk->getConnections())->toBeNull();
+});
+
 test('a `webapp` strategy is used by default', function(): void
 {
     $sdk = new SdkConfiguration([
@@ -468,7 +480,21 @@ test('defaultOrganization() successfully returns the first organization', functi
     expect($sdk->defaultOrganization())->toEqual('org1');
 });
 
-test('defaultOrganization() returns null when no organizations are configured', function(): void
+test('defaultConnection() successfully returns the first connection', function(): void
+{
+    $sdk = new SdkConfiguration([
+        'domain' => MockDomain::valid(),
+        'cookieSecret' => uniqid(),
+        'clientId' => uniqid(),
+        'redirectUri' => uniqid(),
+        'connections' => ['con1', 'con2', 'con3'],
+    ]);
+
+    expect($sdk->defaultConnection())->toEqual('con1');
+});
+
+
+test('defaultConnection() returns null when no connections are configured', function(): void
 {
     $sdk = new SdkConfiguration([
         'domain' => MockDomain::valid(),
@@ -477,7 +503,7 @@ test('defaultOrganization() returns null when no organizations are configured', 
         'redirectUri' => uniqid(),
     ]);
 
-    expect($sdk->defaultOrganization())->toBeNull();
+    expect($sdk->defaultConnection())->toBeNull();
 });
 
 test('defaultAudience() successfully returns the first audience', function(): void
@@ -1137,6 +1163,41 @@ test('Organization methods function as expected', function(): void
     expect($config->hasOrganization())->toBeTrue();
 });
 
+test('Connection methods function as expected', function(): void
+{
+    $config = new SdkConfiguration([
+        'domain' => MockDomain::valid(),
+        'cookieSecret' => uniqid(),
+        'clientId' => uniqid(),
+        'redirectUri' => uniqid()
+    ]);
+
+    expect($config->hasConnection())->toBeFalse();
+
+    $config->setConnections(null);
+    expect($config->getConnections())->toBeNull();
+
+    $config->setConnections(['123', null, 456]);
+    expect($config->getConnections())->toEqual(['123', '456']);
+
+    $config->setConnections([]);
+    expect($config->getConnections())->toBeNull();
+
+    $config->pushConnection('');
+    expect($config->getConnections())->toBeNull();
+
+    $config->pushOrganization([]);
+    expect($config->getConnections())->toBeNull();
+
+    $config->pushConnection('123');
+    expect($config->getConnections())->toEqual(['123']);
+
+    $config->pushConnection([null, 456, null, '', 'test']);
+    expect($config->getConnections())->toEqual(['123', '456', 'test']);
+
+    expect($config->hasConnection())->toBeTrue();
+});
+
 test('getOrganization() throws an assigned exception when not configured', function(): void
 {
     $config = new SdkConfiguration([
@@ -1148,6 +1209,19 @@ test('getOrganization() throws an assigned exception when not configured', funct
 
     $config->getOrganization(new Exception('This should be thrown'));
 })->throws(Exception::class, 'This should be thrown');
+
+test('getConnections() throws an assigned exception when not configured', function(): void
+{
+    $config = new SdkConfiguration([
+        'domain' => MockDomain::valid(),
+        'cookieSecret' => uniqid(),
+        'clientId' => uniqid(),
+        'redirectUri' => uniqid()
+    ]);
+
+    $config->getConnections(new Exception('This should be thrown'));
+})->throws(Exception::class, 'This should be thrown');
+
 
 test('Persistence methods function as expected', function(): void
 {
